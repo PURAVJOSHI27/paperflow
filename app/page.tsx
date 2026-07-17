@@ -216,17 +216,17 @@ export default function Home() {
             </header>
 
             {/* Hero Section */}
-            <main className="flex-1 w-full max-w-7xl mx-auto px-6 pt-12 pb-20 md:pt-20 md:pb-28 flex flex-col items-center justify-start text-center relative z-10">
-              <div className="flex items-center gap-2 px-3.5 py-1 border border-black rounded-full text-black mb-8 bg-zinc-50 shadow-[2px_2px_0px_rgba(0,0,0,1)]">
+            <main className="flex-1 w-full max-w-7xl mx-auto px-6 pt-4 pb-20 md:pt-6 md:pb-28 flex flex-col items-center justify-start text-center relative z-10">
+              <div className="flex items-center gap-2 px-3.5 py-1 border border-black rounded-full text-black mb-4 bg-zinc-50 shadow-[2px_2px_0px_rgba(0,0,0,1)]">
                 <Sparkle size={14} weight="fill" className="text-rose-600" />
                 <span className="wide-text text-[9px] font-bold tracking-widest">VIT AP SEMESTER RESOURCE</span>
               </div>
 
-              <h1 className="wide-display text-4xl md:text-7xl font-bold tracking-wide leading-none text-zinc-950 mb-8 max-w-[15ch]">
+              <h1 className="wide-display text-4xl md:text-7xl font-bold tracking-wide leading-none text-zinc-950 mb-4 max-w-[15ch]">
                 SEMESTER PAPERS, SIMPLIFIED.
               </h1>
               
-              <p className="text-sm md:text-base text-zinc-500 font-medium max-w-[45ch] mb-12 leading-relaxed">
+              <p className="text-sm md:text-base text-zinc-500 font-medium max-w-[45ch] mb-6 leading-relaxed">
                 The consolidated, peer-verified previous year question paper archive for VIT AP University. Sourced by students, organized with clarity.
               </p>
 
