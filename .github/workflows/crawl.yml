@@ -1,0 +1,39 @@
+name: Auto Crawl PYQ Papers
+
+on:
+  schedule:
+    # Runs every 12 hours (at 00:00 and 12:00 UTC)
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+    # Allows manual trigger via the GitHub Actions UI
+
+jobs:
+  crawl-and-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Run Crawler Script
+      run: node scripts/crawl.js
+
+    - name: Commit and Push Changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action [Bot]"
+        
+        # Verify if the database file has changes
+        if git diff --quiet app/data/courses.ts; then
+          echo "No new papers or subjects discovered."
+        else
+          echo "New papers or subjects found! Committing to main..."
+          git add app/data/courses.ts
+          git commit -m "chore: auto-update question papers database from live portal"
+          git push
+        fi
