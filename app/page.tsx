@@ -5,20 +5,22 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   MagnifyingGlass, Bookmark, BookmarkSimple, Play, Pause, 
   ArrowCounterClockwise, DownloadSimple, ArrowSquareOut, Plus, X, 
-  CircleNotch, PaperPlane, CheckCircle, FileText 
+  CircleNotch, PaperPlane, CheckCircle, FileText, ArrowRight,
+  Sparkle, Books, Timer, ShieldCheck, Upload
 } from "@phosphor-icons/react";
 
 import { coursesData, Course, Paper } from "./data/courses";
 
 export default function Home() {
+  const [showApp, setShowApp] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
   const [activeCourse, setActiveCourse] = useState<Course>(coursesData[0]);
-  const [rightPaneView, setRightPaneView] = useState<"list" | "detail">("list");
   
   // Bookmarks state
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
+  const [rightPaneView, setRightPaneView] = useState<"list" | "detail">("list");
 
   // Timer State (integrated on the left HUD)
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -37,6 +39,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
 
   // Load bookmarks on mount
   useEffect(() => {
@@ -50,9 +53,10 @@ export default function Home() {
     }
   }, []);
 
-  // Keyboard shortcut: pressing '/' focuses the search box
+  // Keyboard shortcut: pressing '/' focuses the search box (only in app view)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!showApp) return;
       if (
         e.key === "/" &&
         document.activeElement?.tagName !== "INPUT" &&
@@ -64,7 +68,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [showApp]);
 
   // Timer effect
   useEffect(() => {
@@ -137,8 +141,6 @@ export default function Home() {
 
   // Filter courses Data
   const filteredCourses = coursesData.filter((course) => {
-    // Branch mapping
-    // codes: CSE..., ECE..., MAT..., FRL..., MGT...
     const codePrefix = course.code.substring(0, 3).toLowerCase();
     
     let matchesBranch = true;
@@ -166,453 +168,644 @@ export default function Home() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const scrollToSection = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-hidden bg-white text-zinc-950 font-sans">
+    <div className="min-h-[100dvh] bg-white text-zinc-950 font-sans selection:bg-rose-500 selection:text-white">
       
-      {/* ================= LEFT SIDEBAR (BLACK PANE) ================= */}
-      <div className="w-full md:w-[42%] flex flex-col justify-between p-8 md:p-12 bg-black text-white relative border-b md:border-b-0 md:border-r border-zinc-900">
-        
-        {/* Top Header - Logo and small tags */}
-        <div className="flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 border border-white font-mono text-sm font-bold rounded">
-              PF
-            </span>
-            <span className="wide-text text-xs tracking-widest text-zinc-300">PAPERFLOW INC.</span>
-          </div>
-          
-          <button 
-            onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
-            className={`flex items-center gap-1.5 px-3 py-1 border rounded-full text-[10px] tracking-wider uppercase font-semibold transition-all duration-200 cursor-pointer ${
-              showBookmarksOnly ? "border-accent text-accent bg-accent/5" : "border-zinc-800 text-zinc-400 hover:border-white hover:text-white"
-            }`}
+      <AnimatePresence mode="wait">
+        {!showApp ? (
+          /* ================= LANDING PAGE VIEW ================= */
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col min-h-[100dvh] pb-8 relative"
           >
-            <span>Saved ({bookmarkedIds.length})</span>
-          </button>
-        </div>
-
-        {/* Center - Hero Typography */}
-        <div className="my-12 md:my-auto max-w-md z-10">
-          <h1 className="wide-display text-3xl md:text-5xl tracking-wide leading-tight text-white mb-6">
-            WE ORGANIZE THE PAPERS YOU NEED
-          </h1>
-          <p className="text-xs text-zinc-400 font-medium leading-relaxed mb-8 max-w-[38ch]">
-            Paperflow takes care of your exam preparation and provides the best experience of your semester revision. Sourced by students, verified by peers.
-          </p>
-          
-          <motion.button
-            onClick={() => { setIsModalOpen(true); setSubmitStatus("idle"); }}
-            className="h-10 px-6 rounded-full border border-white bg-transparent text-white text-xs uppercase tracking-widest font-bold hover:bg-white hover:text-black transition-all duration-200 cursor-pointer"
-            whileTap={{ scale: 0.96 }}
-          >
-            Submit A Paper
-          </motion.button>
-        </div>
-
-        {/* Bottom - Focus HUD (Timer resembling Music playback controller) */}
-        <div className="z-10 bg-zinc-950/40 border border-zinc-900 p-5 rounded-2xl">
-          <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-zinc-900">
-            <span className="wide-text text-[9px] tracking-widest text-accent font-semibold flex items-center gap-1.5">
-              <span>●</span> STUDY SESSION TIMER
-            </span>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setMode("study")}
-                className={`text-[9px] uppercase tracking-wider font-bold transition-all duration-150 ${timerMode === "study" ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}
-              >
-                Study
-              </button>
-              <button 
-                onClick={() => setMode("break")}
-                className={`text-[9px] uppercase tracking-wider font-bold transition-all duration-150 ${timerMode === "break" ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}
-              >
-                Break
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-mono text-3xl font-bold text-white tracking-tight leading-none select-none">
-                {formatTime(timeLeft)}
-              </span>
-              <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold mt-1">
-                {timerRunning ? (timerMode === "study" ? "KEEP FOCUSING" : "TAKE A BREATH") : "TIMER PAUSED"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={resetTimer}
-                className="w-8 h-8 rounded-full border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-500 flex items-center justify-center transition-colors cursor-pointer"
-                title="Reset timer"
-              >
-                <ArrowCounterClockwise size={14} />
-              </button>
-              <button
-                onClick={toggleTimer}
-                className="w-10 h-10 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center transition-transform cursor-pointer"
-                title={timerRunning ? "Pause" : "Start"}
-              >
-                {timerRunning ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" className="ml-0.5" />}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ================= RIGHT PANEL (WHITE PANE) ================= */}
-      <div className="w-full md:w-[58%] flex flex-col bg-white text-zinc-950 overflow-y-auto h-full md:h-[100dvh] relative">
-        <AnimatePresence mode="wait">
-          {rightPaneView === "detail" && activeCourse ? (
-            /* ================= SUBJECT DETAIL VIEW ================= */
-            <motion.div
-              key="detail"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex-1 p-8 md:p-12 pb-20 flex flex-col min-h-full"
-            >
-              {/* Back Button */}
-              <button
-                onClick={() => setRightPaneView("list")}
-                className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-full hover:bg-black hover:text-white transition-all cursor-pointer wide-text text-[9px] font-bold w-fit"
-              >
-                <span>← Back to Subjects</span>
-              </button>
-
-              {/* Course Title Details */}
-              <div className="mt-8 mb-10 pb-6 border-b border-zinc-100">
-                <span className="wide-text text-[10px] tracking-wider text-accent font-bold">
-                  {activeCourse.code}
+            {/* Sticky Navigation Header */}
+            <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-black flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center justify-center w-8 h-8 border border-black font-mono text-sm font-bold rounded">
+                  PF
                 </span>
-                <h2 className="wide-display text-2xl md:text-3xl font-bold tracking-tight text-zinc-950 mt-1 leading-snug">
-                  {activeCourse.name}
-                </h2>
-                <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-400 font-semibold bg-zinc-50 border border-zinc-100 px-2.5 py-0.5 rounded">
-                    {activeCourse.category}
-                  </span>
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-400 font-semibold bg-zinc-50 border border-zinc-100 px-2.5 py-0.5 rounded">
-                    {activeCourse.semester}
-                  </span>
+                <span className="wide-text text-xs tracking-widest text-zinc-950">PAPERFLOW</span>
+              </div>
+
+              <div className="hidden md:flex items-center gap-8 wide-text text-[10px] font-bold text-zinc-600">
+                <button onClick={() => scrollToSection(featuresRef)} className="hover:text-black cursor-pointer">
+                  Features
+                </button>
+                <button onClick={() => { setIsModalOpen(true); setSubmitStatus("idle"); }} className="hover:text-black cursor-pointer">
+                  Contribute
+                </button>
+                <a href="https://github.com/PURAVJOSHI27/paperflow" target="_blank" rel="noopener noreferrer" className="hover:text-black">
+                  Repository
+                </a>
+              </div>
+
+              <button
+                onClick={() => setShowApp(true)}
+                className="h-9 px-5 rounded-full bg-black text-white hover:bg-zinc-800 text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer"
+              >
+                Launch App
+              </button>
+            </header>
+
+            {/* Hero Section */}
+            <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col items-center justify-center text-center relative z-10">
+              <div className="flex items-center gap-2 px-3.5 py-1 border border-black rounded-full text-black mb-8 bg-zinc-50 shadow-[2px_2px_0px_rgba(0,0,0,1)]">
+                <Sparkle size={14} weight="fill" className="text-rose-600" />
+                <span className="wide-text text-[9px] font-bold tracking-widest">VIT AP SEMESTER RESOURCE</span>
+              </div>
+
+              <h1 className="wide-display text-4xl md:text-7xl font-bold tracking-wide leading-none text-zinc-950 mb-8 max-w-[15ch]">
+                SEMESTER PAPERS, SIMPLIFIED.
+              </h1>
+              
+              <p className="text-sm md:text-base text-zinc-500 font-medium max-w-[45ch] mb-12 leading-relaxed">
+                The consolidated, peer-verified previous year question paper archive for VIT AP University. Sourced by students, organized with clarity.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <button
+                  onClick={() => setShowApp(true)}
+                  className="h-12 px-8 rounded-full bg-black text-white font-bold text-xs uppercase tracking-widest hover:shadow-[4px_4px_0px_rgba(225,29,72,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all border border-black cursor-pointer flex items-center gap-2"
+                >
+                  <span>Open Catalog</span>
+                  <ArrowRight size={14} weight="bold" />
+                </button>
+                
+                <button
+                  onClick={() => scrollToSection(featuresRef)}
+                  className="h-12 px-8 rounded-full border border-zinc-200 bg-white text-zinc-800 font-bold text-xs uppercase tracking-widest hover:border-black hover:text-black transition-colors cursor-pointer"
+                >
+                  Learn More
+                </button>
+              </div>
+            </main>
+
+            {/* Features Grid (Bento Layout) */}
+            <section ref={featuresRef} className="w-full max-w-7xl mx-auto px-6 py-20 border-t border-black relative z-10 scroll-mt-16">
+              <div className="text-center mb-16">
+                <span className="wide-text text-[10px] tracking-widest text-zinc-400 font-bold">CORE VALUE PROPOSITIONS</span>
+                <h2 className="wide-display text-2xl md:text-4xl font-bold text-zinc-950 mt-2">ENGINEERED FOR SEMESTER FOCUS</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Feature 1 */}
+                <div className="border border-black rounded-xl p-6 bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col justify-between min-h-[220px]">
+                  <div className="w-10 h-10 rounded-full border border-black flex items-center justify-center bg-zinc-50">
+                    <Books size={18} weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="wide-text text-[11px] font-bold text-zinc-950 mb-2">50+ Subject Index</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium leading-relaxed">
+                      Syllabus-aligned archives covering CSE, ECE, Mathematics, Languages, and elective courses.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Feature 2 */}
+                <div className="border border-black rounded-xl p-6 bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col justify-between min-h-[220px]">
+                  <div className="w-10 h-10 rounded-full border border-black flex items-center justify-center bg-zinc-50">
+                    <Timer size={18} weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="wide-text text-[11px] font-bold text-zinc-950 mb-2">Focus Study HUD</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium leading-relaxed">
+                      Integrated Pomodoro timer clock embedded in the app workspace to organize focus intervals.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Feature 3 */}
+                <div className="border border-black rounded-xl p-6 bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col justify-between min-h-[220px]">
+                  <div className="w-10 h-10 rounded-full border border-black flex items-center justify-center bg-zinc-50">
+                    <ShieldCheck size={18} weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="wide-text text-[11px] font-bold text-zinc-950 mb-2">100% Peer-Verified</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium leading-relaxed">
+                      All download links reference verified Google Drive files with no redirect ads or broken shortcuts.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Feature 4 */}
+                <div className="border border-black rounded-xl p-6 bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col justify-between min-h-[220px]">
+                  <div className="w-10 h-10 rounded-full border border-black flex items-center justify-center bg-zinc-50">
+                    <Upload size={18} weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="wide-text text-[11px] font-bold text-zinc-950 mb-2">Share Resources</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium leading-relaxed">
+                      Help expand the archive. Submit missing CAT-1, CAT-2, or FAT papers through our upload review form.
+                    </p>
+                  </div>
                 </div>
               </div>
+            </section>
 
-              {/* Papers List grouped by CAT-1, CAT-2, FAT */}
-              <div className="space-y-8 flex-1">
-                {activeCourse.papers.length === 0 ? (
-                  <div className="py-16 text-center border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/10">
-                    <span className="text-xs text-zinc-400 font-medium">No question papers uploaded for this course yet.</span>
-                  </div>
-                ) : (
-                  <>
-                    {/* Group FAT */}
-                    {activeCourse.papers.some(p => p.type === "FAT") && (
-                      <div>
-                        <h3 className="wide-text text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-4 flex items-center gap-2">
-                          <span>FAT (Final Assessment Tests)</span>
-                          <span className="h-[1px] flex-1 bg-zinc-100" />
-                        </h3>
-                        <div className="grid grid-cols-1 gap-3">
-                          {activeCourse.papers
-                            .filter(p => p.type === "FAT")
-                            .map((paper) => {
-                              const isBookmarked = bookmarkedIds.includes(paper.id);
-                              return (
-                                <div 
-                                  key={paper.id} 
-                                  className="flex items-center justify-between p-4 sm:p-5 rounded-xl border border-zinc-200 bg-white transition-all duration-200 hover:border-black hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <span className="px-2 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
-                                      {paper.year}
-                                    </span>
-                                    <span className="text-xs font-semibold text-zinc-800">
-                                      {paper.name}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleToggleBookmark(paper.id)}
-                                      className={`w-8 h-8 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-white transition-all cursor-pointer ${
-                                        isBookmarked ? "text-accent border-accent/40 bg-accent/5" : "text-zinc-400"
-                                      }`}
-                                      title={isBookmarked ? "Remove Bookmark" : "Save Paper"}
-                                    >
-                                      {isBookmarked ? <Bookmark size={12} weight="fill" className="text-accent" /> : <BookmarkSimple size={12} />}
-                                    </button>
-                                    
-                                    <a
-                                      href={paper.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="h-8 px-4 rounded-full bg-zinc-950 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                                    >
-                                      <span>Open</span>
-                                      <ArrowSquareOut size={10} />
-                                    </a>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Group CAT-2 */}
-                    {activeCourse.papers.some(p => p.type === "CAT-2") && (
-                      <div>
-                        <h3 className="wide-text text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-4 flex items-center gap-2">
-                          <span>CAT-2 Exams</span>
-                          <span className="h-[1px] flex-1 bg-zinc-100" />
-                        </h3>
-                        <div className="grid grid-cols-1 gap-3">
-                          {activeCourse.papers
-                            .filter(p => p.type === "CAT-2")
-                            .map((paper) => {
-                              const isBookmarked = bookmarkedIds.includes(paper.id);
-                              return (
-                                <div 
-                                  key={paper.id} 
-                                  className="flex items-center justify-between p-4 sm:p-5 rounded-xl border border-zinc-200 bg-white transition-all duration-200 hover:border-black hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <span className="px-2 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
-                                      {paper.year}
-                                    </span>
-                                    <span className="text-xs font-semibold text-zinc-800">
-                                      {paper.name}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleToggleBookmark(paper.id)}
-                                      className={`w-8 h-8 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-white transition-all cursor-pointer ${
-                                        isBookmarked ? "text-accent border-accent/40 bg-accent/5" : "text-zinc-400"
-                                      }`}
-                                      title={isBookmarked ? "Remove Bookmark" : "Save Paper"}
-                                    >
-                                      {isBookmarked ? <Bookmark size={12} weight="fill" className="text-accent" /> : <BookmarkSimple size={12} />}
-                                    </button>
-                                    
-                                    <a
-                                      href={paper.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="h-8 px-4 rounded-full bg-zinc-950 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                                    >
-                                      <span>Open</span>
-                                      <ArrowSquareOut size={10} />
-                                    </a>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Group CAT-1 */}
-                    {activeCourse.papers.some(p => p.type === "CAT-1") && (
-                      <div>
-                        <h3 className="wide-text text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-4 flex items-center gap-2">
-                          <span>CAT-1 Exams</span>
-                          <span className="h-[1px] flex-1 bg-zinc-100" />
-                        </h3>
-                        <div className="grid grid-cols-1 gap-3">
-                          {activeCourse.papers
-                            .filter(p => p.type === "CAT-1")
-                            .map((paper) => {
-                              const isBookmarked = bookmarkedIds.includes(paper.id);
-                              return (
-                                <div 
-                                  key={paper.id} 
-                                  className="flex items-center justify-between p-4 sm:p-5 rounded-xl border border-zinc-200 bg-white transition-all duration-200 hover:border-black hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <span className="px-2 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
-                                      {paper.year}
-                                    </span>
-                                    <span className="text-xs font-semibold text-zinc-800">
-                                      {paper.name}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleToggleBookmark(paper.id)}
-                                      className={`w-8 h-8 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-white transition-all cursor-pointer ${
-                                        isBookmarked ? "text-accent border-accent/40 bg-accent/5" : "text-zinc-400"
-                                      }`}
-                                      title={isBookmarked ? "Remove Bookmark" : "Save Paper"}
-                                    >
-                                      {isBookmarked ? <Bookmark size={12} weight="fill" className="text-accent" /> : <BookmarkSimple size={12} />}
-                                    </button>
-                                    
-                                    <a
-                                      href={paper.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="h-8 px-4 rounded-full bg-zinc-950 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                                    >
-                                      <span>Open</span>
-                                      <ArrowSquareOut size={10} />
-                                    </a>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
+            {/* Call to Action Footer Section */}
+            <section className="w-full max-w-7xl mx-auto px-6 py-12 md:py-20 border-t border-black flex flex-col items-center text-center relative z-10 mb-12">
+              <h2 className="wide-display text-2xl md:text-3xl font-bold text-zinc-950 mb-6">READY TO BROWSE?</h2>
+              <button
+                onClick={() => setShowApp(true)}
+                className="h-11 px-8 rounded-full bg-black text-white font-bold text-xs uppercase tracking-widest hover:shadow-[3px_3px_0px_rgba(225,29,72,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all border border-black cursor-pointer"
+              >
+                Launch Application Workspace
+              </button>
+            </section>
+          </motion.div>
+        ) : (
+          /* ================= APP PORTAL VIEW (SPLIT-SCREEN) ================= */
+          <motion.div
+            key="app"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-[100dvh] flex flex-col md:flex-row overflow-hidden bg-white text-zinc-950 font-sans"
+          >
+            {/* ================= LEFT SIDEBAR (BLACK PANE) ================= */}
+            <div className="w-full md:w-[42%] flex flex-col justify-between p-8 md:p-12 bg-black text-white relative border-b md:border-b-0 md:border-r border-zinc-900 shrink-0">
+              
+              {/* Top Header - Logo and back link */}
+              <div className="flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowApp(false)}
+                    className="flex items-center justify-center w-8 h-8 border border-white font-mono text-sm font-bold rounded hover:bg-white hover:text-black transition-colors cursor-pointer"
+                    title="Return to Landing Page"
+                  >
+                    ←
+                  </button>
+                  <span className="wide-text text-xs tracking-widest text-zinc-300">PAPERFLOW</span>
+                </div>
+                
+                <button 
+                  onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
+                  className={`flex items-center gap-1.5 px-3 py-1 border rounded-full text-[10px] tracking-wider uppercase font-semibold transition-all duration-200 cursor-pointer ${
+                    showBookmarksOnly ? "border-accent text-accent bg-accent/5" : "border-zinc-800 text-zinc-400 hover:border-white hover:text-white"
+                  }`}
+                >
+                  <span>Saved ({bookmarkedIds.length})</span>
+                </button>
               </div>
-            </motion.div>
-          ) : (
-            /* ================= SUBJECT CATALOG LIST VIEW ================= */
-            <motion.div
-              key="list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col flex-1"
-            >
-              {/* Top Sticky Header */}
-              <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-8 py-6 border-b border-black flex flex-col gap-5 shrink-0">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Search Box - Pill layout */}
-                  <div className="relative flex-1 max-w-sm">
-                    <MagnifyingGlass size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder="Search subject code or name..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full h-10 pl-11 pr-10 rounded-full border border-zinc-300 bg-white text-xs font-bold focus:outline-none focus:border-black focus:ring-1 focus:ring-black focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all text-zinc-950"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-mono text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded">
-                      /
+
+              {/* Center - Hero Typography */}
+              <div className="my-12 md:my-auto max-w-md z-10">
+                <h1 className="wide-display text-3xl md:text-5xl tracking-wide leading-tight text-white mb-6">
+                  WE ORGANIZE THE PAPERS YOU NEED
+                </h1>
+                <p className="text-xs text-zinc-400 font-medium leading-relaxed mb-8 max-w-[38ch]">
+                  Paperflow takes care of your exam preparation and provides the best experience of your semester revision. Sourced by students, verified by peers.
+                </p>
+                
+                <motion.button
+                  onClick={() => { setIsModalOpen(true); setSubmitStatus("idle"); }}
+                  className="h-10 px-6 rounded-full border border-white bg-transparent text-white text-xs uppercase tracking-widest font-bold hover:bg-white hover:text-black transition-all duration-200 cursor-pointer"
+                  whileTap={{ scale: 0.96 }}
+                >
+                  Submit A Paper
+                </motion.button>
+              </div>
+
+              {/* Bottom - Focus HUD Timer */}
+              <div className="z-10 bg-zinc-950/40 border border-zinc-900 p-5 rounded-2xl">
+                <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-zinc-900">
+                  <span className="wide-text text-[9px] tracking-widest text-accent font-semibold flex items-center gap-1.5">
+                    <span>●</span> STUDY SESSION TIMER
+                  </span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setMode("study")}
+                      className={`text-[9px] uppercase tracking-wider font-bold transition-all duration-150 ${timerMode === "study" ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+                    >
+                      Study
+                    </button>
+                    <button 
+                      onClick={() => setMode("break")}
+                      className={`text-[9px] uppercase tracking-wider font-bold transition-all duration-150 ${timerMode === "break" ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+                    >
+                      Break
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="font-mono text-3xl font-bold text-white tracking-tight leading-none select-none">
+                      {formatTime(timeLeft)}
+                    </span>
+                    <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold mt-1">
+                      {timerRunning ? (timerMode === "study" ? "KEEP FOCUSING" : "TAKE A BREATH") : "TIMER PAUSED"}
                     </span>
                   </div>
 
-                  {/* Navigation links styled as branch filters in wide font */}
-                  <div className="flex flex-wrap items-center gap-2 wide-text text-[9px] font-bold">
-                    <button 
-                      onClick={() => setSelectedBranch("all")}
-                      className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                        selectedBranch === "all" 
-                          ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
-                          : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
-                      }`}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={resetTimer}
+                      className="w-8 h-8 rounded-full border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-500 flex items-center justify-center transition-colors cursor-pointer"
+                      title="Reset timer"
                     >
-                      All
+                      <ArrowCounterClockwise size={14} />
                     </button>
-                    <button 
-                      onClick={() => setSelectedBranch("cse")}
-                      className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                        selectedBranch === "cse" 
-                          ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
-                          : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
-                      }`}
+                    <button
+                      onClick={toggleTimer}
+                      className="w-10 h-10 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center transition-transform cursor-pointer"
+                      title={timerRunning ? "Pause" : "Start"}
                     >
-                      CSE
-                    </button>
-                    <button 
-                      onClick={() => setSelectedBranch("ece")}
-                      className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                        selectedBranch === "ece" 
-                          ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
-                          : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
-                      }`}
-                    >
-                      ECE
-                    </button>
-                    <button 
-                      onClick={() => setSelectedBranch("mat")}
-                      className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                        selectedBranch === "mat" 
-                          ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
-                          : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
-                      }`}
-                    >
-                      Maths
-                    </button>
-                    <button 
-                      onClick={() => setSelectedBranch("lang")}
-                      className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                        selectedBranch === "lang" 
-                          ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
-                          : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
-                      }`}
-                    >
-                      Languages
-                    </button>
-                    <button 
-                      onClick={() => setSelectedBranch("other")}
-                      className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                        selectedBranch === "other" 
-                          ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
-                          : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
-                      }`}
-                    >
-                      Others
+                      {timerRunning ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" className="ml-0.5" />}
                     </button>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Content Body - The Tracklist */}
-              <div className="flex-1 px-8 py-8 pb-20">
-                <div className="flex justify-between items-center wide-text text-[8px] font-bold tracking-widest text-zinc-400 uppercase mb-5 px-2">
-                  <span>Subject Catalog</span>
-                  <span>Volume</span>
-                </div>
+            {/* ================= RIGHT PANEL (WHITE PANE) ================= */}
+            <div className="w-full md:w-[58%] flex flex-col bg-white text-zinc-950 overflow-y-auto h-full md:h-[100dvh] relative">
+              <AnimatePresence mode="wait">
+                {rightPaneView === "detail" && activeCourse ? (
+                  /* ================= SUBJECT DETAIL VIEW ================= */
+                  <motion.div
+                    key="detail"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex-1 p-8 md:p-12 pb-20 flex flex-col min-h-full"
+                  >
+                    {/* Back Button */}
+                    <button
+                      onClick={() => setRightPaneView("list")}
+                      className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-full hover:bg-black hover:text-white transition-all cursor-pointer wide-text text-[9px] font-bold w-fit"
+                    >
+                      <span>← Back to Subjects</span>
+                    </button>
 
-                <div className="space-y-3.5">
-                  {filteredCourses.length === 0 ? (
-                    <div className="text-center py-16 border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/20">
-                      <span className="text-xs text-zinc-400 font-medium">No subjects found matching the filters.</span>
+                    {/* Course Title Details */}
+                    <div className="mt-8 mb-10 pb-6 border-b border-zinc-100">
+                      <span className="wide-text text-[10px] tracking-wider text-accent font-bold">
+                        {activeCourse.code}
+                      </span>
+                      <h2 className="wide-display text-2xl md:text-3xl font-bold tracking-tight text-zinc-950 mt-1 leading-snug">
+                        {activeCourse.name}
+                      </h2>
+                      <div className="flex flex-wrap items-center gap-3 mt-3">
+                        <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-400 font-semibold bg-zinc-50 border border-zinc-100 px-2.5 py-0.5 rounded">
+                          {activeCourse.category}
+                        </span>
+                        <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-400 font-semibold bg-zinc-50 border border-zinc-100 px-2.5 py-0.5 rounded">
+                          {activeCourse.semester}
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    filteredCourses.map((course) => {
-                      return (
-                        <div
-                          key={course.code}
-                          onClick={() => {
-                            setActiveCourse(course);
-                            setRightPaneView("detail");
-                          }}
-                          className="group relative cursor-pointer border border-zinc-200 rounded-xl p-5 bg-white transition-all duration-250 hover:border-black hover:shadow-[4px_4px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="wide-display text-sm tracking-wide font-bold text-zinc-800 group-hover:text-black transition-colors leading-none">
-                                {course.name}
-                              </span>
-                              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-400 mt-2 font-semibold group-hover:text-zinc-500 transition-colors">
-                                {course.code} • {course.category}
-                              </span>
-                            </div>
-                            
-                            <span className="wide-text text-[8px] tracking-widest text-zinc-400 border border-zinc-200 px-3 py-1 rounded-full font-bold group-hover:border-black group-hover:text-black transition-all">
-                              {course.papersCount} papers
-                            </span>
-                          </div>
+
+                    {/* Papers List grouped by CAT-1, CAT-2, FAT */}
+                    <div className="space-y-8 flex-1">
+                      {activeCourse.papers.length === 0 ? (
+                        <div className="py-16 text-center border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/10">
+                          <span className="text-xs text-zinc-400 font-medium">No question papers uploaded for this course yet.</span>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                      ) : (
+                        <>
+                          {/* Group FAT */}
+                          {activeCourse.papers.some(p => p.type === "FAT") && (
+                            <div>
+                              <h3 className="wide-text text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-4 flex items-center gap-2">
+                                <span>FAT (Final Assessment Tests)</span>
+                                <span className="h-[1px] flex-1 bg-zinc-100" />
+                              </h3>
+                              <div className="grid grid-cols-1 gap-3">
+                                  {activeCourse.papers
+                                    .filter(p => p.type === "FAT")
+                                    .map((paper) => {
+                                      const isBookmarked = bookmarkedIds.includes(paper.id);
+                                      return (
+                                        <div 
+                                          key={paper.id} 
+                                          className="flex items-center justify-between p-4 sm:p-5 rounded-xl border border-zinc-200 bg-white transition-all duration-200 hover:border-black hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <span className="px-2 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
+                                              {paper.year}
+                                            </span>
+                                            <span className="text-xs font-semibold text-zinc-800">
+                                              {paper.name}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => handleToggleBookmark(paper.id)}
+                                              className={`w-8 h-8 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-white transition-all cursor-pointer ${
+                                                isBookmarked ? "text-accent border-accent/40 bg-accent/5" : "text-zinc-400"
+                                              }`}
+                                              title={isBookmarked ? "Remove Bookmark" : "Save Paper"}
+                                            >
+                                              {isBookmarked ? <Bookmark size={12} weight="fill" className="text-accent" /> : <BookmarkSimple size={12} />}
+                                            </button>
+                                            
+                                            <a
+                                              href={paper.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-8 px-4 rounded-full bg-zinc-950 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <span>Open</span>
+                                              <ArrowSquareOut size={10} />
+                                            </a>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Group CAT-2 */}
+                          {activeCourse.papers.some(p => p.type === "CAT-2") && (
+                            <div>
+                              <h3 className="wide-text text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-4 flex items-center gap-2">
+                                <span>CAT-2 Exams</span>
+                                <span className="h-[1px] flex-1 bg-zinc-100" />
+                              </h3>
+                              <div className="grid grid-cols-1 gap-3">
+                                  {activeCourse.papers
+                                    .filter(p => p.type === "CAT-2")
+                                    .map((paper) => {
+                                      const isBookmarked = bookmarkedIds.includes(paper.id);
+                                      return (
+                                        <div 
+                                          key={paper.id} 
+                                          className="flex items-center justify-between p-4 sm:p-5 rounded-xl border border-zinc-200 bg-white transition-all duration-200 hover:border-black hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <span className="px-2 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
+                                              {paper.year}
+                                            </span>
+                                            <span className="text-xs font-semibold text-zinc-800">
+                                              {paper.name}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => handleToggleBookmark(paper.id)}
+                                              className={`w-8 h-8 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-white transition-all cursor-pointer ${
+                                                isBookmarked ? "text-accent border-accent/40 bg-accent/5" : "text-zinc-400"
+                                              }`}
+                                              title={isBookmarked ? "Remove Bookmark" : "Save Paper"}
+                                            >
+                                              {isBookmarked ? <Bookmark size={12} weight="fill" className="text-accent" /> : <BookmarkSimple size={12} />}
+                                            </button>
+                                            
+                                            <a
+                                              href={paper.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-8 px-4 rounded-full bg-zinc-950 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <span>Open</span>
+                                              <ArrowSquareOut size={10} />
+                                            </a>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Group CAT-1 */}
+                          {activeCourse.papers.some(p => p.type === "CAT-1") && (
+                            <div>
+                              <h3 className="wide-text text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-4 flex items-center gap-2">
+                                <span>CAT-1 Exams</span>
+                                <span className="h-[1px] flex-1 bg-zinc-100" />
+                              </h3>
+                              <div className="grid grid-cols-1 gap-3">
+                                  {activeCourse.papers
+                                    .filter(p => p.type === "CAT-1")
+                                    .map((paper) => {
+                                      const isBookmarked = bookmarkedIds.includes(paper.id);
+                                      return (
+                                        <div 
+                                          key={paper.id} 
+                                          className="flex items-center justify-between p-4 sm:p-5 rounded-xl border border-zinc-200 bg-white transition-all duration-200 hover:border-black hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <span className="px-2 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
+                                              {paper.year}
+                                            </span>
+                                            <span className="text-xs font-semibold text-zinc-800">
+                                              {paper.name}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => handleToggleBookmark(paper.id)}
+                                              className={`w-8 h-8 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-white transition-all cursor-pointer ${
+                                                isBookmarked ? "text-accent border-accent/40 bg-accent/5" : "text-zinc-400"
+                                              }`}
+                                              title={isBookmarked ? "Remove Bookmark" : "Save Paper"}
+                                            >
+                                              {isBookmarked ? <Bookmark size={12} weight="fill" className="text-accent" /> : <BookmarkSimple size={12} />}
+                                            </button>
+                                            
+                                            <a
+                                              href={paper.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-8 px-4 rounded-full bg-zinc-950 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                            >
+                                              <span>Open</span>
+                                              <ArrowSquareOut size={10} />
+                                            </a>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                ) : (
+                  /* ================= SUBJECT CATALOG LIST VIEW ================= */
+                  <motion.div
+                    key="list"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col flex-1"
+                  >
+                    {/* Top Sticky Header */}
+                    <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-8 py-6 border-b border-black flex flex-col gap-5 shrink-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Search Box - Pill layout */}
+                        <div className="relative flex-1 max-w-sm">
+                          <MagnifyingGlass size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                          <input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="Search subject code or name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full h-10 pl-11 pr-10 rounded-full border border-zinc-300 bg-white text-xs font-bold focus:outline-none focus:border-black focus:ring-1 focus:ring-black focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all text-zinc-950"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-mono text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded">
+                            /
+                          </span>
+                        </div>
+
+                        {/* Navigation links styled as branch filters in wide font */}
+                        <div className="flex flex-wrap items-center gap-2 wide-text text-[9px] font-bold">
+                          <button 
+                            onClick={() => setSelectedBranch("all")}
+                            className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              selectedBranch === "all" 
+                                ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                            }`}
+                          >
+                            All
+                          </button>
+                          <button 
+                            onClick={() => setSelectedBranch("cse")}
+                            className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              selectedBranch === "cse" 
+                                ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                            }`}
+                          >
+                            CSE
+                          </button>
+                          <button 
+                            onClick={() => setSelectedBranch("ece")}
+                            className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              selectedBranch === "ece" 
+                                ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                            }`}
+                          >
+                            ECE
+                          </button>
+                          <button 
+                            onClick={() => setSelectedBranch("mat")}
+                            className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              selectedBranch === "mat" 
+                                ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                            }`}
+                          >
+                            Maths
+                          </button>
+                          <button 
+                            onClick={() => setSelectedBranch("lang")}
+                            className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              selectedBranch === "lang" 
+                                ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                            }`}
+                          >
+                            Languages
+                          </button>
+                          <button 
+                            onClick={() => setSelectedBranch("other")}
+                            className={`h-8 px-3 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              selectedBranch === "other" 
+                                ? "bg-black text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]" 
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                            }`}
+                          >
+                            Others
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Content Body - The Tracklist */}
+                    <div className="flex-1 px-8 py-8 pb-20">
+                      <div className="flex justify-between items-center wide-text text-[8px] font-bold tracking-widest text-zinc-400 uppercase mb-5 px-2">
+                        <span>Subject Catalog</span>
+                        <span>Volume</span>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        {filteredCourses.length === 0 ? (
+                          <div className="text-center py-16 border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/20">
+                            <span className="text-xs text-zinc-400 font-medium">No subjects found matching the filters.</span>
+                          </div>
+                        ) : (
+                          filteredCourses.map((course) => {
+                            return (
+                              <div
+                                key={course.code}
+                                onClick={() => {
+                                  setActiveCourse(course);
+                                  setRightPaneView("detail");
+                                }}
+                                className="group relative cursor-pointer border border-zinc-200 rounded-xl p-5 bg-white transition-all duration-250 hover:border-black hover:shadow-[4px_4px_0px_rgba(0,0,0,1)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex flex-col">
+                                    <span className="wide-display text-sm tracking-wide font-bold text-zinc-800 group-hover:text-black transition-colors leading-none">
+                                      {course.name}
+                                    </span>
+                                    <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-400 mt-2 font-semibold group-hover:text-zinc-500 transition-colors">
+                                      {course.code} • {course.category}
+                                    </span>
+                                  </div>
+                                  
+                                  <span className="wide-text text-[8px] tracking-widest text-zinc-400 border border-zinc-200 px-3 py-1 rounded-full font-bold group-hover:border-black group-hover:text-black transition-all">
+                                    {course.papersCount} papers
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ================= ROLLING MARQUEE TICKER BANNER ================= */}
+      <div className="fixed bottom-0 left-0 w-full h-8 bg-black text-white border-t border-zinc-900 z-40 flex items-center overflow-hidden select-none">
+        <div className="animate-marquee whitespace-nowrap flex items-center gap-16 py-1">
+          {/* First copy */}
+          <div className="flex items-center gap-16 wide-text text-[9px] tracking-widest text-zinc-300">
+            <span>★ PAPERFLOW EXAM ARCHIVE</span>
+            <span>★ VIT AP UNIVERSITY</span>
+            <span>★ 100% PEER-VERIFIED EXAM PAPERS</span>
+            <span>★ REVISE EFFORTLESSLY</span>
+            <span>★ USE THE FOCUS TIMER HUD</span>
+            <span>★ SUBMIT MISSING DOCUMENTS</span>
+          </div>
+          {/* Second copy for seamless looping */}
+          <div className="flex items-center gap-16 wide-text text-[9px] tracking-widest text-zinc-300" aria-hidden="true">
+            <span>★ PAPERFLOW EXAM ARCHIVE</span>
+            <span>★ VIT AP UNIVERSITY</span>
+            <span>★ 100% PEER-VERIFIED EXAM PAPERS</span>
+            <span>★ REVISE EFFORTLESSLY</span>
+            <span>★ USE THE FOCUS TIMER HUD</span>
+            <span>★ SUBMIT MISSING DOCUMENTS</span>
+          </div>
+        </div>
       </div>
 
       {/* ================= CONTRIBUTOR SUBMISSION MODAL ================= */}
@@ -776,30 +969,6 @@ export default function Home() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* ================= ROLLING MARQUEE TICKER BANNER ================= */}
-      <div className="fixed bottom-0 left-0 w-full h-8 bg-black text-white border-t border-zinc-900 z-40 flex items-center overflow-hidden select-none">
-        <div className="animate-marquee whitespace-nowrap flex items-center gap-16 py-1">
-          {/* First copy */}
-          <div className="flex items-center gap-16 wide-text text-[9px] tracking-widest text-zinc-300">
-            <span>★ PAPERFLOW EXAM ARCHIVE</span>
-            <span>★ VIT AP UNIVERSITY</span>
-            <span>★ 100% PEER-VERIFIED EXAM PAPERS</span>
-            <span>★ REVISE EFFORTLESSLY</span>
-            <span>★ USE THE FOCUS TIMER HUD</span>
-            <span>★ SUBMIT MISSING DOCUMENTS</span>
-          </div>
-          {/* Second copy for seamless looping */}
-          <div className="flex items-center gap-16 wide-text text-[9px] tracking-widest text-zinc-300" aria-hidden="true">
-            <span>★ PAPERFLOW EXAM ARCHIVE</span>
-            <span>★ VIT AP UNIVERSITY</span>
-            <span>★ 100% PEER-VERIFIED EXAM PAPERS</span>
-            <span>★ REVISE EFFORTLESSLY</span>
-            <span>★ USE THE FOCUS TIMER HUD</span>
-            <span>★ SUBMIT MISSING DOCUMENTS</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
