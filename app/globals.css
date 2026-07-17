@@ -2,25 +2,98 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #09090b;
+  
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-syncopate), sans-serif;
+  
+  --accent: #e11d48; /* Crimson / Rose accent */
+  --border: #e4e4e7;
+  
+  /* B&W split screen helper classes */
+  --left-bg: #000000;
+  --left-text: #ffffff;
+  --right-bg: #ffffff;
+  --right-text: #09090b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography styles matching Monument / Syncopate style */
+.wide-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.wide-text {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Custom layout styling */
+.split-left-pane {
+  background-color: var(--left-bg);
+  color: var(--left-text);
+}
+
+.split-right-pane {
+  background-color: var(--right-bg);
+  color: var(--right-text);
+}
+
+/* Custom Scrollbar in B&W */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #27272a;
+}
+
+/* Marquee Scrolling Ticker Animation */
+@keyframes marquee {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
 }
